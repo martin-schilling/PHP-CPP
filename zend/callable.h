@@ -52,8 +52,8 @@ public:
         }
 
         // initialize the extra argument
-        _argv[i].class_name = nullptr;
-        _argv[i].name       = nullptr;
+        _argv[i].type = NULL;
+        _argv[i].name = nullptr;
     }
 
     /**
@@ -168,25 +168,26 @@ protected:
         info->name = arg.name();
 
         // are we filling an object
-        if (arg.type() == Type::Object) info->class_name = arg.classname();
-        else info->class_name = nullptr;
+        if (arg.type() == Type::Object) {
+            info->type = ZEND_TYPE_ENCODE_CLASS(arg.classname(), arg.allowNull());
+        } else {
+            // set the correct type-hint
+            switch (arg.type())
+            {
+                case Type::Undefined:   info->type = ZEND_TYPE_ENCODE(IS_UNDEF, arg.allowNull());     break;  // undefined means we'll accept any type
+                case Type::Null:        info->type = ZEND_TYPE_ENCODE(IS_UNDEF, arg.allowNull());      break;  // this is likely an error, what good would accepting NULL be? accept anything
+                case Type::False:       info->type = ZEND_TYPE_ENCODE(_IS_BOOL, arg.allowNull());     break;  // accept true as well ;)
+                case Type::True:        info->type = ZEND_TYPE_ENCODE(_IS_BOOL, arg.allowNull());     break;  // accept false as well
+                case Type::Bool:        info->type = ZEND_TYPE_ENCODE(_IS_BOOL, arg.allowNull());     break;  // any bool will do, true, false, the options are limitless
+                case Type::Numeric:     info->type = ZEND_TYPE_ENCODE(IS_LONG, arg.allowNull());      break;  // accept integers here
+                case Type::Float:       info->type = ZEND_TYPE_ENCODE(IS_DOUBLE, arg.allowNull());    break;  // floating-point values welcome too
+                case Type::String:      info->type = ZEND_TYPE_ENCODE(IS_STRING, arg.allowNull());    break;  // accept strings, should auto-cast objects with __toString as well
+                case Type::Array:       info->type = ZEND_TYPE_ENCODE(IS_ARRAY, arg.allowNull());     break;  // array of anything (individual members cannot be restricted)
+                case Type::Object:      info->type = ZEND_TYPE_ENCODE(IS_OBJECT, arg.allowNull());    break;  // must be an object of the given classname
+                case Type::Callable:    info->type = ZEND_TYPE_ENCODE(IS_CALLABLE, arg.allowNull());  break;  // anything that can be invoked
+                default:                info->type = ZEND_TYPE_ENCODE(IS_UNDEF, arg.allowNull());     break;  // if not specified we allow anything
 
-        // set the correct type-hint
-        switch (arg.type())
-        {
-            case Type::Undefined:   info->type_hint = IS_UNDEF;     break;  // undefined means we'll accept any type
-            case Type::Null:        info->type_hint = IS_UNDEF;     break;  // this is likely an error, what good would accepting NULL be? accept anything
-            case Type::False:       info->type_hint = _IS_BOOL;     break;  // accept true as well ;)
-            case Type::True:        info->type_hint = _IS_BOOL;     break;  // accept false as well
-            case Type::Bool:        info->type_hint = _IS_BOOL;     break;  // any bool will do, true, false, the options are limitless
-            case Type::Numeric:     info->type_hint = IS_LONG;      break;  // accept integers here
-            case Type::Float:       info->type_hint = IS_DOUBLE;    break;  // floating-point values welcome too
-            case Type::String:      info->type_hint = IS_STRING;    break;  // accept strings, should auto-cast objects with __toString as well
-            case Type::Array:       info->type_hint = IS_ARRAY;     break;  // array of anything (individual members cannot be restricted)
-            case Type::Object:      info->type_hint = IS_OBJECT;    break;  // must be an object of the given classname
-            case Type::Callable:    info->type_hint = IS_CALLABLE;  break;  // anything that can be invoked
-            default:                info->type_hint = IS_UNDEF;     break;  // if not specified we allow anything
-
+            }
         }
 
         // from PHP 5.6 and onwards, an is_variadic property can be set, this
@@ -196,7 +197,6 @@ protected:
         info->is_variadic = false;
 
         // this parameter is a regular type
-        info->allow_null = arg.allowNull();
         info->pass_by_reference = arg.byReference();
     }
 
@@ -217,4 +217,3 @@ protected:
  *  End of namespace
  */
 }
-

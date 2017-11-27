@@ -773,6 +773,8 @@ static Value do_exec(const zval *object, zval *method, int argc, zval *argv)
         // to give the C++ code the chance to catch it
         if (oldException != EG(exception) && EG(exception)) throw OrigException(EG(exception));
 
+        std::cout << Z_ISUNDEF(retval) << std::endl;
+
         // leap out if nothing was returned
         if (Z_ISUNDEF(retval)) return nullptr;
 
