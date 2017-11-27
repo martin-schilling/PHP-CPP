@@ -28,10 +28,10 @@ void Callable::invoke(INTERNAL_FUNCTION_PARAMETERS)
     zend_arg_info* info = EX(func)->common.arg_info;
 
     // Sanity check
-    assert(info[argc].class_name != nullptr && info[argc].name == nullptr);
+    assert(ZEND_TYPE_NAME(info[argc].type) != nullptr && info[argc].name == nullptr);
 
     // the callable we are retrieving
-    Callable *callable = reinterpret_cast<Callable*>(info[argc].class_name);
+    Callable *callable = reinterpret_cast<Callable*>(ZEND_TYPE_NAME(info[argc].type));
 
     // check if sufficient parameters were passed (for some reason this check
     // is not done by Zend, so we do it here ourselves)
@@ -87,12 +87,14 @@ void Callable::initialize(zend_function_entry *entry, const char *classname, int
     else
     {
         // install ourselves in the extra argument
-        _argv[_argc + 1].class_name = reinterpret_cast<const char*>(this);
+        //_argv[_argc + 1].type = ZEND_TYPE_ENCODE_CLASS(reinterpret_cast<const char*>(this), true);
 
         // we use our own invoke method, which does a lookup
         // in the map we just installed ourselves in
         entry->handler = &Callable::invoke;
     }
+
+    std::cout << classname << std::endl;
 
     // fill the members of the entity, and hide a pointer to the current object in the name
     entry->fname = _name.data();
@@ -112,11 +114,10 @@ void Callable::initialize(zend_function_entry *entry, const char *classname, int
 void Callable::initialize(zend_internal_function_info *info, const char *classname) const
 {
     // store the classname
-    info->class_name = classname;
+    //info->type = ZEND_TYPE_ENCODE_CLASS(classname, false);
 
     // number of required arguments, and the expected return type
     info->required_num_args = _required;
-    info->type_hint = (unsigned char)_return;
 
     // we do not support return-by-reference
     info->return_reference = false;
@@ -124,7 +125,6 @@ void Callable::initialize(zend_internal_function_info *info, const char *classna
     // since php 5.6 there are _allow_null and _is_variadic properties. It's
     // not exactly clear what they do (@todo find this out) so for now we set
     // them to false
-    info->allow_null = false;
     info->_is_variadic = false;
 }
 
